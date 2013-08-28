@@ -1,0 +1,82 @@
+/* Regular Web */
+@media screen {
+	#detector { 
+        opacity: 0;
+    }
+    #background {
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 0; 
+	    left:0;
+	    
+	    background:white;         
+    }
+    #screen { 
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 0; 
+	    left:0;
+    }
+    #controller { 
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 240px; 
+	    left:0;
+	    
+	    background:beige;  
+    }
+}
+
+/* Portrait iPhone 4 */
+@media screen and (max-width: 320px) {
+	#detector { 
+	    text-align:center;
+        opacity: 1;
+        position:relative;
+        top: 150px;
+    }
+    #background { 
+	    opacity: 0;
+    }
+    #screen { 
+	    opacity: 0;
+    }
+    #controller { 
+	    opacity: 0;
+    }
+
+}
+/* Landscape iPhone 4 */
+@media screen and (min-width: 321px) and (max-width: 480px) {
+	#detector { 
+        opacity: 0;
+    }
+    #background {
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 0; 
+	    left:0;
+	    
+	    background:white;         
+    }
+    #screen { 
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 0; 
+	    left:0;
+    }
+    #controller { 
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 240px; 
+	    left:0;
+	    
+	    background:beige;  
+    }
+}
