@@ -6,13 +6,19 @@
 /*                                                  */
 //////////////////////////////////////////////////////
 
+//Firebase for multiplayer
+//
+//var dataRef = new Firebase("https://gwailosintime.firebaseio.com");
+
 //Drawing variables
 //
-var SCREEN = document.getElementById("screen");
-var CONTROLLER = document.getElementById("controller");
-var BACKGROUND = document.getElementById("background");
+var PLAYER = document.getElementById("player"); //canvas with the player sprite on it
+var SCREEN = document.getElementById("screen"); //canvas with balls and spears
+var CONTROLLER = document.getElementById("controller"); //canvas with the controller
+var BACKGROUND = document.getElementById("background"); //canvas with the background image
 
 var ctx = SCREEN.getContext("2d");
+var playerCanvas = PLAYER.getContext("2d");
 var controller = CONTROLLER.getContext("2d");
 var background = BACKGROUND.getContext("2d");
 
@@ -21,20 +27,31 @@ var background = BACKGROUND.getContext("2d");
 var touchable = 'createTouch' in document;
 var touchX;
 var touchY;
+var touchFlag = false; //indicates something is touching
 
 //Random variables that make the game work
 //
 var gameState = "game";  //determines game state to switch between menus etc.
-var bubbles = []; //array of bouncing bubbles
+var spearFlag = false;
 
 //Configure constants that effect game behaviour
 //
-
 var GROUND = 214; //y coordinates of the start of the ground
 
+//player attributes
 var PLAYER_SPEED = 2;  
 var PLAYER_HEIGHT = 40;
 var PLAYER_WIDTH = 20;
+
+//spear attributes
+var SPEAR_SPEED = 5;
+var SPEAR_HEIGHT = 10;
+var SPEAR_WIDTH = 5;
+
+//bubble attributes
+var SPEEDX = 3;
+var SPEEDY = 5;
+var RADIUS = 20;
 
 
 
@@ -58,12 +75,22 @@ window.requestAnimFrame = (function(){
       };
 })();
 
-//function that checks if two rectangles overlap, for use in collision detection
-function collision(r1, r2) {
-    return !(r2.left > r1.right
-        || r2.right < r1.left
-        || r2.top > r1.bottom
-        || r2.bottom < r1.top);
+//function that checks if circle and rectangle overlap, for use in collision detection
+function collision(circle, rect) {
+    var circleDistanceX = Math.abs(circle.x - rect.x);
+    var circleDistanceY = Math.abs(circle.y - rect.y);
+
+    if (circleDistanceX > (rect.width/2 + circle.radius)) { return false; }
+    if (circleDistanceY > (rect.height/2 + circle.radius)) { return false; }
+
+    if (circleDistanceX <= (rect.width/2)) { return true; } 
+    if (circleDistanceY <= (rect.height/2)) { return true; }
+
+    var cornerDistance_sq = (circleDistanceX - rect.width/2)^2 +
+                         (circleDistanceY - rect.height/2)^2;
+
+    if (cornerDistance_sq <= (circle.r^2)) { return true; }
+
 }
 
 //generates/controls/draws player
@@ -78,24 +105,164 @@ function Player() {
         this.width = PLAYER_WIDTH;
     };
     
+    this.update = function update() {
+        if (Key.isDown(Key.LEFT)) this.moveLeft();
+        if (Key.isDown(Key.RIGHT)) this.moveRight();
+        
+        if (touchFlag === true) {
+            if (touchY > 240) {
+                if (touchX < 120) {
+                    player.moveLeft();
+                }
+                else if (touchX > 120 && touchX < 240) {
+                    player.moveRight();
+                }
+                else if (touchX > 240) {
+                }
+            }
+        }
+
+    };
+    
     this.draw = function draw() {
-        ctx.fillStyle = "blue";
-        ctx.fillRect(this.x,this.y,player.width,player.height);
+        playerCanvas.fillStyle = "blue";
+        playerCanvas.fillRect(this.x,this.y,player.width,player.height);
     };
     
     this.moveLeft = function moveLeft() {
-        ctx.clearRect(this.x,this.y,this.width,this.height);
+        playerCanvas.clearRect(this.x,this.y,this.width,this.height);
         this.x -= PLAYER_SPEED;
+        if (this.x < 0) this.x = 0;
     };
     
     this.moveRight = function moveLeft() {
-        ctx.clearRect(this.x,this.y,this.width,this.height);
+        playerCanvas.clearRect(this.x,this.y,this.width,this.height);
         this.x += PLAYER_SPEED;
+        if (this.x > SCREEN.width - this.width) this.x = (SCREEN.width - this.width);
+    };
+}
+
+//generates a spear
+function Spear() {
+    //initialize spear at coordinate x
+    this.init = function init(x) {
+        this.x = x;
+        this.y = GROUND;
+        
+        this.height = SPEAR_HEIGHT;
+        this.width = SPEAR_WIDTH;
+
+    };
+    
+    this.update = function update() {
+        //if (collision(bubble, this)) {
+        //    alert("Popped!");
+        //}
+        
+        ctx.clearRect(this.x, this.y, SPEAR_WIDTH, SPEAR_HEIGHT);
+        //spear travels upwards
+        if (spearFlag) {
+            spear.y -= SPEAR_SPEED;
+        }
+        
+        //hits top of screen and disappears
+        if (spear.y < 0) {
+            ctx.clearRect(this.x, this.y, SPEAR_WIDTH, SCREEN.height);
+            this.init(-50);
+            spearFlag = false;
+        }
+    };
+    
+    this.draw = function draw() {
+        //spear head
+        ctx.fillRect(this.x,this.y,SPEAR_WIDTH,SPEAR_HEIGHT);
+    };
+}
+
+//generates bubbles to be popped
+function Bubble () {
+
+    //initializes ball at coordinates x,y
+    this.init = function init(x,y) {
+        //defines ball coordinates
+        this.x = x;
+        this.y = y;
+        
+        //defines which direction the ball is moving
+        this.dX = true;      //if true, it's going right
+        this.dY = false;     //if true, it's going down
+        
+        this.radius = RADIUS;
+        
     };
     
     
-}
+    this.draw = function() {
+        //Clear current image of ball
+        ctx.clearRect(this.x-this.radius,this.y-this.radius,this.radius*2,this.radius*2); 
+        
+        //If ball hits something, reverse direction
+        if (this.checkHitEdgeX(this.x) === true || 
+            this.checkHitEdgeX(this.x + this.radius) === true) {  
+            this.dX = !this.dX;
+        }
+        if (this.checkHitEdgeY(this.y) === true || 
+            this.checkHitEdgeY(this.y + this.radius) === true) {  
+            this.dY = !this.dY;
+        }
+        
+        //Moves ball
+        if (this.dX === true) {  //remember: if true it's going right
+            this.x += SPEEDX;    
+        }
+        else if (this.dX === false) {
+            this.x -= SPEEDX;
+        }
+        if (this.dY === false) {  //remember: if true it's going down
+            this.y -= SPEEDY;    
+        }
+        else if (this.dY === true) {
+            this.y += SPEEDY;
+        }
+    
+        //Draws bubble
+        ctx.fillStyle = "silver";
 
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+        ctx.closePath();
+        
+        ctx.fill();
+        
+        //ctx.strokeRect(this.x-this.radius, this.y-this.radius, this.radius*2,this.radius*2);
+    };
+    
+    //checks if ball hits edges of gameboard on y axis
+    this.checkHitEdgeY = function checkHitY(y) {
+        if (y < 0 ) {
+            return true;
+        }
+        else if (y > GROUND) {
+            return true;
+        }
+        else {
+            return false;
+        }    
+    };
+    
+    //cchecks if ball hit edges of gameboard on X axis
+    this.checkHitEdgeX = function checkHitX(x) {
+        if (x >= SCREEN.width ) {
+            return true;
+        }
+        else if (x < 0 ) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    };
+}
 
 //////////////////////////////////////////////////////
 /*                                                  */
@@ -114,6 +281,7 @@ var Key = {
   UP: 38,
   RIGHT: 39,
   DOWN: 40,
+  SPACE: 32,
   
   isDown: function(keyCode) {
     return this._pressed[keyCode];
@@ -121,6 +289,14 @@ var Key = {
   
   onKeydown: function(event) {
     this._pressed[event.keyCode] = true;
+    
+    if (event.keyCode == 32) {
+        // Spacebar
+        if (spearFlag === false) {
+            spearFlag = true;
+            spear.init(player.x + (PLAYER_WIDTH/2));
+        }
+    }
   },
   
   onKeyup: function(event) {
@@ -128,10 +304,6 @@ var Key = {
   }
 };
 
-Player.prototype.update = function() {
-  if (Key.isDown(Key.LEFT)) this.moveLeft();
-  if (Key.isDown(Key.RIGHT)) this.moveRight();
-};
 
 //Touch listener
 if(touchable) {
@@ -147,21 +319,8 @@ function onTouchStart(event) {
     
     touchX = touch.pageX;
     touchY = touch.pageY;
-    
-    if (touchY > 240) {
-        if (touchX < 120) {
-            alert("left"); 
-        }
-        else if (touchX > 120 && touchX < 240) {
-            alert("right");
-        }
-        else if (touchX > 240) {
-            alert("shoot");
-        }
-    }
-    
-    
-    
+    touchFlag = true;
+
 }
 
 function onTouchMove(event) {
@@ -177,6 +336,7 @@ function onTouchMove(event) {
 
 function onTouchEnd(event) { 
     
+    touchFlag = false;
 }
 
 
@@ -192,10 +352,13 @@ function main() {
 
     switch (gameState) {
         case "game":
-            
             player.update();
+            spear.update();
+
+            bubble.draw();
+            spear.draw();
             player.draw();
-            
+
             break;
     }
     
@@ -226,6 +389,13 @@ background.fillRect(0,GROUND,BACKGROUND.width,BACKGROUND.height-GROUND);
 //Initialize shit
 var player = new Player();
 player.init(30,(GROUND-PLAYER_HEIGHT));
+//myDataRef.push({playerx: player.x, playery: player.y});
+
+var spear = new Spear();
+spear.init(-50);
+
+var bubble = new Bubble();
+bubble.init(30,30);
 
 //Starts game
 main();

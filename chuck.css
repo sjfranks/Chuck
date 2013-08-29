@@ -19,8 +19,15 @@
 	    top: 0; 
 	    left:0;
     }
-    #controller { 
+    #player { 
 	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 0; 
+	    left:0;
+    }
+    #controller { 
+	    opacity: 0;
 	    
 	    position:fixed; 
 	    top: 240px; 
@@ -47,6 +54,9 @@
     #controller { 
 	    opacity: 0;
     }
+    #player {
+        opacity: 0;
+    }
 
 }
 /* Landscape iPhone 4 */
@@ -64,6 +74,13 @@
 	    background:white;         
     }
     #screen { 
+	    opacity: 1;
+	    
+	    position:fixed; 
+	    top: 0; 
+	    left:0;
+    }
+    #player { 
 	    opacity: 1;
 	    
 	    position:fixed; 

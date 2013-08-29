@@ -5,6 +5,9 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="black">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
         
+        <script src="https://cdn.firebase.com/v0/firebase.js"></script>
+        <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js'></script>
+        
         <link rel="stylesheet" type="text/css" href="chuck.css" media="screen">
         
         <title>Chuck</title>
@@ -14,6 +17,7 @@
     <body -ms-touch-action: none>
         <canvas id="background" width="480" height="240"></canvas>
         <canvas id="screen" width="480" height="240"></canvas>
+        <canvas id="player" width="480" height="240"></canvas>
         <canvas id="controller" width="480" height="80">
             Your browser does not support the HTML5 canvas tag.
         </canvas>
