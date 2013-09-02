@@ -8,7 +8,7 @@
 
 //Firebase for multiplayer
 //
-//var dataRef = new Firebase("https://gwailosintime.firebaseio.com");
+var dataRef = new Firebase("https://gwailosintime.firebaseio.com");
 
 //Drawing variables
 //
@@ -32,11 +32,11 @@ var touchFlag = false; //indicates something is touching
 //Random variables that make the game work
 //
 var gameState = "game";  //determines game state to switch between menus etc.
-var spearFlag = false;
+var spearFlag = false; //if true, a spear is on screen
 
 //Configure constants that effect game behaviour
 //
-var GROUND = 214; //y coordinates of the start of the ground
+var GROUND = 225; //y coordinates of the start of the ground
 
 //player attributes
 var PLAYER_SPEED = 2;  
@@ -50,10 +50,12 @@ var SPEAR_WIDTH = 5;
 
 //bubble attributes
 var SPEEDX = 3;
-var SPEEDY = 5;
-var RADIUS = 20;
-
-
+var SPEEDY = 2;
+var BIG_RADIUS = 25; //the radius of the 'big' balls
+var MED_RADIUS = 18;
+var SMALL_RADIUS = 9;
+var TINY_RADIUS = 5;
+var GRAVITY = 0.7;
 
 
 
@@ -96,20 +98,20 @@ function collision(circle, rect) {
 //generates/controls/draws player
 function Player() {
     
-    //initialize player at coordinates x, y
-    this.init = function init(x,y) {
-        this.x = x;
-        this.y = y;
+    //initial values
+    this.x = 30;
+    this.y = GROUND-PLAYER_HEIGHT;
         
-        this.height = PLAYER_HEIGHT;
-        this.width = PLAYER_WIDTH;
-    };
-    
+    this.height = PLAYER_HEIGHT;
+    this.width = PLAYER_WIDTH;
+
     this.update = function update() {
+        playerCanvas.clearRect(this.x-2,this.y-2,this.width+4,this.height+4);
+        
         if (Key.isDown(Key.LEFT)) this.moveLeft();
         if (Key.isDown(Key.RIGHT)) this.moveRight();
         
-        if (touchFlag === true) {
+        if (touchFlag === true) {   ///What the touch controls do. This should be moved somewhere more logical
             if (touchY > 240) {
                 if (touchX < 120) {
                     player.moveLeft();
@@ -118,6 +120,10 @@ function Player() {
                     player.moveRight();
                 }
                 else if (touchX > 240) {
+                    if (spearFlag === false) {
+                        spearFlag = true;
+                        spear.init(player.x + (PLAYER_WIDTH/2));
+                    }
                 }
             }
         }
@@ -130,13 +136,11 @@ function Player() {
     };
     
     this.moveLeft = function moveLeft() {
-        playerCanvas.clearRect(this.x,this.y,this.width,this.height);
         this.x -= PLAYER_SPEED;
         if (this.x < 0) this.x = 0;
     };
     
     this.moveRight = function moveLeft() {
-        playerCanvas.clearRect(this.x,this.y,this.width,this.height);
         this.x += PLAYER_SPEED;
         if (this.x > SCREEN.width - this.width) this.x = (SCREEN.width - this.width);
     };
@@ -144,38 +148,42 @@ function Player() {
 
 //generates a spear
 function Spear() {
+  
     //initialize spear at coordinate x
     this.init = function init(x) {
         this.x = x;
-        this.y = GROUND;
-        
+        this.y = GROUND-SPEAR_HEIGHT;
         this.height = SPEAR_HEIGHT;
         this.width = SPEAR_WIDTH;
-
+        
     };
     
     this.update = function update() {
-        //if (collision(bubble, this)) {
-        //    alert("Popped!");
-        //}
-        
-        ctx.clearRect(this.x, this.y, SPEAR_WIDTH, SPEAR_HEIGHT);
+        ctx.clearRect(this.x-2, this.y-2, SPEAR_WIDTH+4, SPEAR_HEIGHT+4);
         //spear travels upwards
         if (spearFlag) {
             spear.y -= SPEAR_SPEED;
+            this.height += SPEAR_SPEED;
         }
         
         //hits top of screen and disappears
         if (spear.y < 0) {
-            ctx.clearRect(this.x, this.y, SPEAR_WIDTH, SCREEN.height);
+            
+            ctx.clearRect(this.x-2, this.y-2, SPEAR_WIDTH+4, SCREEN.height+4);
             this.init(-50);
             spearFlag = false;
         }
     };
     
     this.draw = function draw() {
+        //rope
+        ctx.fillStyle = "brown";
+        ctx.fillRect(this.x, this.y,this.width,(GROUND-this.y));
+
         //spear head
-        ctx.fillRect(this.x,this.y,SPEAR_WIDTH,SPEAR_HEIGHT);
+        ctx.fillStyle = "silver";
+        ctx.fillRect(this.x,this.y,this.width,SPEAR_HEIGHT);
+    
     };
 }
 
@@ -183,48 +191,55 @@ function Spear() {
 function Bubble () {
 
     //initializes ball at coordinates x,y
-    this.init = function init(x,y) {
+    this.init = function init(x,y,size) {
         //defines ball coordinates
         this.x = x;
         this.y = y;
         
-        //defines which direction the ball is moving
-        this.dX = true;      //if true, it's going right
-        this.dY = false;     //if true, it's going down
+        this.radius = size;
         
-        this.radius = RADIUS;
-        
+        this.velocityX = SPEEDX;
+        this.velocityY = SPEEDY;
+    
     };
     
     
-    this.draw = function() {
+    this.update = function() {
         //Clear current image of ball
-        ctx.clearRect(this.x-this.radius,this.y-this.radius,this.radius*2,this.radius*2); 
+        ctx.clearRect(this.x-this.radius-2,this.y-this.radius-2,this.radius*2+4,this.radius*2+4); 
+        
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+        
+        this.velocityY += GRAVITY;
+        
+        /*
+        //make sure ball bounces only so high relative to the ground regardless of elevation 
+        if (this.velocityY > 19) { 
+            this.velocityY = 19;
+        }
+        */
         
         //If ball hits something, reverse direction
-        if (this.checkHitEdgeX(this.x) === true || 
+        if (this.checkHitEdgeX(this.x - this.radius) === true || 
             this.checkHitEdgeX(this.x + this.radius) === true) {  
-            this.dX = !this.dX;
+            this.velocityX *= -1;
         }
-        if (this.checkHitEdgeY(this.y) === true || 
+        if (this.checkHitEdgeY(this.y - this.radius) === true || 
             this.checkHitEdgeY(this.y + this.radius) === true) {  
-            this.dY = !this.dY;
+            this.velocityY = (this.velocityY - GRAVITY) * -1; //prevent gravity from adding at the moment that the yVel changes direction
+            //(stops the ball from bouncing ever higher).
+            //this.velocityX *= 0.85; //use friction to limit the horizontal bouncing.
         }
         
-        //Moves ball
-        if (this.dX === true) {  //remember: if true it's going right
-            this.x += SPEEDX;    
+        if (collision(this, spear)) {
+            bubbles.push(new Bubble(this.x, this.y, this.radius/2));
         }
-        else if (this.dX === false) {
-            this.x -= SPEEDX;
-        }
-        if (this.dY === false) {  //remember: if true it's going down
-            this.y -= SPEEDY;    
-        }
-        else if (this.dY === true) {
-            this.y += SPEEDY;
-        }
-    
+        
+
+    };
+
+    this.draw = function() {
         //Draws bubble
         ctx.fillStyle = "silver";
 
@@ -233,16 +248,15 @@ function Bubble () {
         ctx.closePath();
         
         ctx.fill();
-        
-        //ctx.strokeRect(this.x-this.radius, this.y-this.radius, this.radius*2,this.radius*2);
     };
+
     
     //checks if ball hits edges of gameboard on y axis
     this.checkHitEdgeY = function checkHitY(y) {
-        if (y < 0 ) {
+        if (y <= 0 ) {
             return true;
         }
-        else if (y > GROUND) {
+        else if (y >= GROUND) {
             return true;
         }
         else {
@@ -354,8 +368,12 @@ function main() {
         case "game":
             player.update();
             spear.update();
+            
+            for (var i = 0; i < bubbles.length; i++) {
+                bubbles[i].update();
+                bubbles[i].draw();
+            }
 
-            bubble.draw();
             spear.draw();
             player.draw();
 
@@ -388,14 +406,15 @@ background.fillRect(0,GROUND,BACKGROUND.width,BACKGROUND.height-GROUND);
 
 //Initialize shit
 var player = new Player();
-player.init(30,(GROUND-PLAYER_HEIGHT));
-//myDataRef.push({playerx: player.x, playery: player.y});
 
 var spear = new Spear();
 spear.init(-50);
 
-var bubble = new Bubble();
-bubble.init(30,30);
+var bubbles = [];
+bubbles[0] = new Bubble();
+bubbles[0].init(SCREEN.width/2,50, MED_RADIUS);
+bubbles[1] = new Bubble();
+bubbles[1].init(300, 50, BIG_RADIUS);
 
 //Starts game
 main();
