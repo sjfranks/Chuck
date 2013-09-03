@@ -40,22 +40,25 @@ var GROUND = 225; //y coordinates of the start of the ground
 
 //player attributes
 var PLAYER_SPEED = 2;  
-var PLAYER_HEIGHT = 40;
-var PLAYER_WIDTH = 20;
+var PLAYER_HEIGHT = 30;
+var PLAYER_WIDTH = 15;
 
 //spear attributes
 var SPEAR_SPEED = 5;
-var SPEAR_HEIGHT = 10;
-var SPEAR_WIDTH = 5;
+var SPEAR_HEIGHT = 5;
+var SPEAR_WIDTH = 3;
 
 //bubble attributes
-var SPEEDX = 3;
-var SPEEDY = 2;
-var BIG_RADIUS = 25; //the radius of the 'big' balls
-var MED_RADIUS = 18;
-var SMALL_RADIUS = 9;
-var TINY_RADIUS = 5;
-var GRAVITY = 0.7;
+var SPEEDX = 1.5;
+var SPEEDY = 0.5;
+var BUBBLEY = 40; //starting height of bubbles
+var RADIUS = [];
+RADIUS[4] = 25; //the radius of 'big' balls
+RADIUS[3] = 18; //the radius of 'medium' balls
+RADIUS[2] = 9;  //the radius of 'small' balls
+RADIUS[1] = 5;  //the radius of 'tiny' balls
+RADIUS[0] = 0;  //the ball disappears!
+var GRAVITY = 0.2;  //ball bounces at a faster rate based on this
 
 
 
@@ -79,8 +82,8 @@ window.requestAnimFrame = (function(){
 
 //function that checks if circle and rectangle overlap, for use in collision detection
 function collision(circle, rect) {
-    var circleDistanceX = Math.abs(circle.x - rect.x);
-    var circleDistanceY = Math.abs(circle.y - rect.y);
+    var circleDistanceX = Math.abs(circle.x - (rect.x+(rect.width/2)));
+    var circleDistanceY = Math.abs(circle.y - (rect.y+(rect.height/2)));
 
     if (circleDistanceX > (rect.width/2 + circle.radius)) { return false; }
     if (circleDistanceY > (rect.height/2 + circle.radius)) { return false; }
@@ -163,15 +166,14 @@ function Spear() {
         //spear travels upwards
         if (spearFlag) {
             spear.y -= SPEAR_SPEED;
-            this.height += SPEAR_SPEED;
-        }
-        
-        //hits top of screen and disappears
-        if (spear.y < 0) {
+            spear.height = GROUND-this.y;
             
-            ctx.clearRect(this.x-2, this.y-2, SPEAR_WIDTH+4, SCREEN.height+4);
-            this.init(-50);
-            spearFlag = false;
+            //hits top of screen and disappears
+            if (spear.y < 0) {
+                ctx.clearRect(this.x-2, this.y-2, SPEAR_WIDTH+4, SCREEN.height+4);
+                this.init(-50);
+                spearFlag = false;
+            }
         }
     };
     
@@ -188,55 +190,96 @@ function Spear() {
 }
 
 //generates bubbles to be popped
-function Bubble () {
+function Bubble (x,y,radius,dx,dy) {
 
-    //initializes ball at coordinates x,y
-    this.init = function init(x,y,size) {
-        //defines ball coordinates
-        this.x = x;
-        this.y = y;
-        
-        this.radius = size;
-        
-        this.velocityX = SPEEDX;
-        this.velocityY = SPEEDY;
+    //defines initial ball coordinates
+    this.x = x;
+    this.y = y;
     
-    };
+    this.radius = radius;
     
+    this.velocityX = dx;
+    this.velocityY = dy;
+    
+    this.alive = true;
+
     
     this.update = function() {
-        //Clear current image of ball
-        ctx.clearRect(this.x-this.radius-2,this.y-this.radius-2,this.radius*2+4,this.radius*2+4); 
-        
-        this.x += this.velocityX;
-        this.y += this.velocityY;
-        
-        this.velocityY += GRAVITY;
-        
-        /*
-        //make sure ball bounces only so high relative to the ground regardless of elevation 
-        if (this.velocityY > 19) { 
-            this.velocityY = 19;
+        if (this.alive) {
+            //Clear current image of ball
+            ctx.clearRect(this.x-this.radius-2,this.y-this.radius-2,this.radius*2+4,this.radius*2+4); 
+            
+            this.x += this.velocityX;
+            this.y += this.velocityY;
+            
+            this.velocityY += GRAVITY;
+            
+            //limits height of bounce based on kind of ball
+            if (this.radius === RADIUS[3]) {
+                if (this.velocityY > 7) { 
+                    this.velocityY = 7;
+                }
+            }
+            else if (this.radius === RADIUS[2]) {
+                if (this.velocityY > 6) { 
+                    this.velocityY = 6;
+                }
+            }
+            else if (this.radius === RADIUS[1]) {
+                if (this.velocityY > 4.5) { 
+                    this.velocityY = 4.5;
+                }
+            }
+            /*
+            //make sure ball bounces only so high relative to the ground regardless of elevation 
+            
+            */
+            
+            //If ball hits something, reverse direction
+            if (this.checkHitEdgeX(this.x - this.radius) === true || 
+                this.checkHitEdgeX(this.x + this.radius) === true) {  
+                this.velocityX *= -1;
+            }
+            if (this.checkHitEdgeY(this.y - this.radius) === true || 
+                this.checkHitEdgeY(this.y + this.radius) === true) {  
+                this.velocityY = (this.velocityY - GRAVITY) * -1; //prevent gravity from adding at the moment that the yVel changes direction
+            }
+            
+            //split into smaller balls on contact with spear
+            if (collision(this, spear)) {
+                this.velocityX *= -1; //reverse direction of ball
+                this.velocityY = Math.abs(this.velocityY) * -1; //makes sure balls explode upwards, otherwise game is too hard
+                
+                if (this.radius === RADIUS[4]) {
+                    this.radius = RADIUS[3];
+                    this.split();
+                }
+                else if (this.radius === RADIUS[3]) {
+                    this.radius = RADIUS[2];
+                    this.split();
+                }
+                else if (this.radius === RADIUS[2]) {
+                    this.radius = RADIUS[1];
+                    this.split();
+                }
+                else if (this.radius === RADIUS[1]) {
+                    this.x = 0;
+                    this.y = 0;
+                    this.radius = 0;   //Get rid of ball.
+                    this.alive = false;
+                }
+                
+                ctx.clearRect(spear.x-2, spear.y-2, SPEAR_WIDTH+4, SCREEN.height+4);
+                spear.init(-50);
+                spearFlag = false;
+                
+                
+            }
+            
+            if (collision(this,player)) {
+                //alert("You got hit!");
+            }
         }
-        */
-        
-        //If ball hits something, reverse direction
-        if (this.checkHitEdgeX(this.x - this.radius) === true || 
-            this.checkHitEdgeX(this.x + this.radius) === true) {  
-            this.velocityX *= -1;
-        }
-        if (this.checkHitEdgeY(this.y - this.radius) === true || 
-            this.checkHitEdgeY(this.y + this.radius) === true) {  
-            this.velocityY = (this.velocityY - GRAVITY) * -1; //prevent gravity from adding at the moment that the yVel changes direction
-            //(stops the ball from bouncing ever higher).
-            //this.velocityX *= 0.85; //use friction to limit the horizontal bouncing.
-        }
-        
-        if (collision(this, spear)) {
-            bubbles.push(new Bubble(this.x, this.y, this.radius/2));
-        }
-        
-
     };
 
     this.draw = function() {
@@ -249,6 +292,20 @@ function Bubble () {
         
         ctx.fill();
     };
+    
+    //splits bubble in half
+    this.split = function() {
+        if (this.velocityX < 0) {
+            this.x = spear.x-this.radius-1;  //move ball outside of collision with spear
+            bubbles.push(new Bubble(spear.x+spear.width+this.radius+1, 
+                this.y, this.radius, this.velocityX*-1,this.velocityY)); 
+        }
+        else if (this.velocityX > 0) {
+            this.x = spear.x+spear.width+this.radius+1;
+            bubbles.push(new Bubble(spear.x-this.radius-1, 
+                this.y, this.radius, this.velocityX*-1, this.velocityY));
+        }
+    };
 
     
     //checks if ball hits edges of gameboard on y axis
@@ -257,6 +314,7 @@ function Bubble () {
             return true;
         }
         else if (y >= GROUND) {
+            this.y = GROUND-this.radius-1; //bug fix to make sure things don't get stuck in ground
             return true;
         }
         else {
@@ -267,15 +325,19 @@ function Bubble () {
     //cchecks if ball hit edges of gameboard on X axis
     this.checkHitEdgeX = function checkHitX(x) {
         if (x >= SCREEN.width ) {
+            this.x = SCREEN.width-this.radius-1;
             return true;
         }
         else if (x < 0 ) {
+            this.x = 0+this.radius+1;
             return true;
         }
         else {
             return false;
         }
     };
+    
+
 }
 
 //////////////////////////////////////////////////////
@@ -369,11 +431,15 @@ function main() {
             player.update();
             spear.update();
             
+            
             for (var i = 0; i < bubbles.length; i++) {
                 bubbles[i].update();
+            }
+            
+            for (i = 0; i < bubbles.length; i++) {
                 bubbles[i].draw();
             }
-
+            
             spear.draw();
             player.draw();
 
@@ -411,10 +477,7 @@ var spear = new Spear();
 spear.init(-50);
 
 var bubbles = [];
-bubbles[0] = new Bubble();
-bubbles[0].init(SCREEN.width/2,50, MED_RADIUS);
-bubbles[1] = new Bubble();
-bubbles[1].init(300, 50, BIG_RADIUS);
+bubbles[0] = new Bubble(SCREEN.width/2,BUBBLEY, RADIUS[4], SPEEDX*-1, SPEEDY);
 
 //Starts game
 main();
