@@ -27,7 +27,7 @@ var controller = CONTROLLER.getContext("2d");
 var background = BACKGROUND.getContext("2d");
 
 //Global game variables
-var NumberOfPlayers;
+var levelNumber = 0; //what level of the game you are on
 
 //Controller variables
 //
@@ -38,7 +38,7 @@ var touchFlag = false; //indicates something is touching
 
 //Random variables that make the game work
 //
-var gameState = "menu";  //determines game state to switch between menus etc.
+var gameState;  //determines game state to switch between menus etc.
 var bubbleCount = 0; //counts how many bubbles are on screen. If 0, new level.
 var players = [];  //arrays to hold bubbles, players, spears
 var bubbles = [];
@@ -50,7 +50,7 @@ spears[3] = new Spear();
 
 //Power up variables
 //
-var multipleSpears = false; //if you get the multiple spears powerup you can shoot two spears
+var multipleSpears = true; //if you get the multiple spears powerup you can shoot two spears
 
 //Configure constants that effect game behaviour
 //
@@ -83,6 +83,65 @@ RADIUS[1] = 5;  //the radius of 'tiny' balls
 RADIUS[0] = 0;  //the ball disappears!
 
 
+
+//////////////////////////////////////////////////////
+/*                                                  */
+/*                LEVELS DATA                       */
+/*                                                  */
+//////////////////////////////////////////////////////
+
+var levels = {
+    "level" : [
+                {
+                    "number"    : 0,
+                    "playerStartX": [30, 90],
+                    "playerStartY": GROUND-PLAYER_HEIGHT,
+                    "bubbles"   : [
+                            {"size"         : 4,
+                             "startingX"    : SCREEN.width/2,
+                             "startingY"    : BUBBLEY, 
+                             "speedx"       : SPEEDX,
+                             "speedy"       : SPEEDY}
+                    ]
+                    
+                    
+                    
+                },
+                {
+                    "number"    : 1,
+                    "playerStartX": [30, 90],
+                    "playerStartY": GROUND-PLAYER_HEIGHT,
+                    "bubbles"   : [
+                            {"size"         : 4,
+                             "startingX"    : SCREEN.width/2,
+                             "startingY"    : BUBBLEY, 
+                             "speedx"       : SPEEDX,
+                             "speedy"       : SPEEDY}
+                    ]
+                    
+                    
+                    
+                },
+                {
+                    "number"    : 2,
+                    "playerStartX": [30, 90],
+                    "playerStartY": GROUND-PLAYER_HEIGHT,
+                    "bubbles"   : [
+                            {"size"         : 4,
+                             "startingX"    : SCREEN.width/2+30,
+                             "startingY"    : BUBBLEY,
+                             "speedx"       : SPEEDX,
+                             "speedy"       : SPEEDY},
+                            
+                            {"size"         : 4,
+                             "startingX"    : SCREEN.width/2-30,
+                             "startingY"    : BUBBLEY, 
+                             "speedx"       : SPEEDX*-1,
+                             "speedy"       : SPEEDY} 
+                    ]
+                }
+            ]
+};
 
 
 
@@ -126,13 +185,15 @@ function Menu() {
     this.update = function update() {
         
         if (Key.isDown(Key.SPACE) || Key.isDown(Key.ENTER)) {
+            Key._pressed = {};
             ctx.clearRect(0,0,SCREEN.width,SCREEN.height);
             
             if (menuPosition === 0) {
-                NumberOfPlayers = 1;
+                players[0] = new Player("blue");
             }
             else if (menuPosition === 1) {
-                NumberOfPlayers = 2;
+                players[0] = new Player("blue");
+                players[1] = new Player("red");
             }
             
             //Draws D-Pad
@@ -149,9 +210,7 @@ function Menu() {
             controller.fillText("R", 165,50);
             controller.fillText("X", 345,50);
             
-            //Draws background
-            background.fillStyle = "firebrick";
-            background.fillRect(0,GROUND,BACKGROUND.width,BACKGROUND.height-GROUND);
+
             gameState = "game";
         }
     };
@@ -181,12 +240,9 @@ function Menu() {
 
 
 //generates/controls/draws player at coordinate x
-function Player(x, colour) {
+function Player(colour) {
     
     //initial values
-    this.x = x;
-    this.y = GROUND-PLAYER_HEIGHT;
-        
     this.height = PLAYER_HEIGHT;
     this.width = PLAYER_WIDTH;
     
@@ -196,22 +252,6 @@ function Player(x, colour) {
         playerCanvas.clearRect(this.x-4,this.y-4,this.width+8,this.height+8);
         
         movePlayer();
-
-        
-        if (touchFlag === true) {   ///What the touch controls do. This should be moved somewhere more logical
-            if (touchY > 240) {
-                if (touchX < 120) {
-                    players[0].moveLeft();
-                }
-                else if (touchX > 120 && touchX < 240) {
-                    players[0].moveRight();
-                }
-                else if (touchX > 240) {
-                    spears[0].chuck(players[0].x + (PLAYER_WIDTH/2));
-                }
-            }
-        }
-
     };
     
     this.draw = function draw() {
@@ -412,7 +452,7 @@ function Bubble (x,y,radius,dx,dy) {
         }    
     };
     
-    //cchecks if ball hit edges of gameboard on X axis
+    //checks if ball hit edges of gameboard on X axis
     this.checkHitEdgeX = function checkHitX(x) {
         if (x >= SCREEN.width ) {
             this.x = SCREEN.width-this.radius-1;
@@ -427,8 +467,78 @@ function Bubble (x,y,radius,dx,dy) {
         }
     };
     
-
 }
+
+//Generate level number 'n'
+function generateLvl(n) {
+    //clear the screen
+    ctx.clearRect(0,0,SCREEN.width,SCREEN.height);
+    playerCanvas.clearRect(0,0,SCREEN.width,SCREEN.height);
+    background.clearRect(0,0,BACKGROUND.width,BACKGROUND.height);
+
+    var levelData = levels.level[n];
+    
+    //draw background
+    background.fillStyle = "firebrick";
+    background.fillRect(0,GROUND,BACKGROUND.width,BACKGROUND.height-GROUND);
+    
+    //place players
+    for (var i = 0; i < players.length; i++) {
+        players[i].x = levelData.playerStartX[i];
+        players[i].y = levelData.playerStartY;
+    }
+    
+    //spawn bubbles
+    for (i = 0; i < levelData.bubbles.length; i++) {
+        var bubble = levelData.bubbles[i];
+        bubbles[i] = new Bubble(bubble.startingX,
+                                bubble.startingY, 
+                                RADIUS[bubble.size], 
+                                bubble.speedx, 
+                                bubble.speedy);
+        bubbleCount++;
+    }    
+}
+
+function init() {
+    Key._pressed = {};
+    
+    players = [];
+    
+    ctx.clearRect(0,0,SCREEN.width,SCREEN.height);
+    playerCanvas.clearRect(0,0,SCREEN.width,SCREEN.height);
+    background.clearRect(0,0,BACKGROUND.width,BACKGROUND.height);
+    
+    gameState = "menu";
+}
+
+function Game() {
+    this.update = function() {
+        for (var i = 0; i < players.length; i++) {
+            players[i].update();
+        }
+        for (i = 0; i < spears.length; i++) {
+            spears[i].update();
+        }
+        for (i = 0; i < bubbles.length; i++) {
+            bubbles[i].update();
+        }
+    };
+    
+    this.draw = function() {
+        for (var i = 0; i < bubbles.length; i++) {
+            bubbles[i].draw();
+        }
+        for (i = 0; i < spears.length; i++) {
+            spears[i].draw();
+        }
+        for (i = 0; i < players.length; i++) {
+            players[i].draw();
+        }
+    };
+}
+
+
 
 //////////////////////////////////////////////////////
 /*                                                  */
@@ -515,10 +625,12 @@ function movePlayer() {
         //Player 1 controls
         if (Key.isDown(Key.LEFT)) players[0].moveLeft();
         if (Key.isDown(Key.RIGHT)) players[0].moveRight();
-        
-        //Player 2 controls
-        if (Key.isDown(Key.A)) players[1].moveLeft();
-        if (Key.isDown(Key.D)) players[1].moveRight();
+
+        //Player 2 controls        
+        if (players[1]) {
+            if (Key.isDown(Key.A)) players[1].moveLeft();
+            if (Key.isDown(Key.D)) players[1].moveRight();
+        }
     }   
 }
 
@@ -575,32 +687,19 @@ function main() {
         
         case "game":
             
-            if (bubbleCount === 0) {  //if no bubbles left, reset
-                bubbles[0] = new Bubble(SCREEN.width/2,BUBBLEY, RADIUS[4], SPEEDX*-1, SPEEDY);
-                bubbleCount = 1;
+            if (bubbleCount === 0) {  //if no bubbles left, generate level
+                levelNumber++;
+                if (levelNumber > 2 ) {
+                    alert("You win.");
+                    levelNumber = 0;
+                    init();
+                    break;
+                }
+                generateLvl(levelNumber);
             }
                         
-            for (var i = 0; i < NumberOfPlayers; i++) {
-                players[i].update();
-            }
-            for (i = 0; i < spears.length; i++) {
-                spears[i].update();
-            }
-            for (i = 0; i < bubbles.length; i++) {
-                bubbles[i].update();
-            }
-            
-            for (i = 0; i < bubbles.length; i++) {
-                bubbles[i].draw();
-            }
-            
-            for (i = 0; i < spears.length; i++) {
-                spears[i].draw();
-            }
-            
-            for (i = 0; i < NumberOfPlayers; i++) {
-                players[i].draw();
-            }
+            game.update();
+            game.draw();
 
             break;
     }
@@ -610,15 +709,10 @@ function main() {
     });
 }
 
-
-
-
 //Initialize shit
-players[0] = new Player(30, "blue");
-players[1] = new Player(60, "red");
-
 var menu = new Menu();
-
+var game = new Game();
 
 //Starts game
+init();
 main();
