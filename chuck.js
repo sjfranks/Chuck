@@ -62,7 +62,7 @@ var TINYBALL_HEIGHT = 5;
 var GRAVITY = 0.2;  //ball bounces at a faster rate based on this
 
 //player attributes
-var PLAYER_SPEED = 1.65;  
+var PLAYER_SPEED = 1.85;  
 var PLAYER_HEIGHT = 30;
 var PLAYER_WIDTH = 15;
 
@@ -110,7 +110,7 @@ var levels = {
                 {
                     "number"    : 1,
                     "playerStartX": [30, 90],
-                    "playerStartY": GROUND-PLAYER_HEIGHT,
+                    "playerStartY": GROUND-PLAYER_HEIGHT-100,
                     "bubbles"   : [
                             {"size"         : 4,
                              "startingX"    : SCREEN.width/2,
@@ -245,13 +245,24 @@ function Player(colour) {
     //initial values
     this.height = PLAYER_HEIGHT;
     this.width = PLAYER_WIDTH;
+    this.speed = PLAYER_SPEED;
+    
+    this.velocityY = 0;
     
     this.colour = colour;
+    
+    this.jumping = false;
 
     this.update = function update() {
         playerCanvas.clearRect(this.x-4,this.y-4,this.width+8,this.height+8);
         
-        movePlayer();
+        this.velocityY += GRAVITY*2;
+        this.y += this.velocityY;
+        if (this.y > (GROUND-PLAYER_HEIGHT)) {
+            this.velocityY = 0;
+            this.y = GROUND-PLAYER_HEIGHT;
+            this.jumping = false;
+        }
     };
     
     this.draw = function draw() {
@@ -260,13 +271,18 @@ function Player(colour) {
     };
     
     this.moveLeft = function moveLeft() {
-        this.x -= PLAYER_SPEED;
+        this.x -= this.speed;
         if (this.x < 0) this.x = 0;
     };
     
     this.moveRight = function moveLeft() {
-        this.x += PLAYER_SPEED;
+        this.x += this.speed;
         if (this.x > SCREEN.width - this.width) this.x = (SCREEN.width - this.width);
+    };
+    
+    this.jump = function jump() {
+        this.jumping = true;
+        this.velocityY -= 7;
     };
 }
 
@@ -517,6 +533,7 @@ function Game() {
         for (var i = 0; i < players.length; i++) {
             players[i].update();
         }
+        movePlayer();
         for (i = 0; i < spears.length; i++) {
             spears[i].update();
         }
@@ -561,6 +578,8 @@ var Key = {
   ENTER: 13,
   A: 65,
   D: 68,
+  W: 87,
+  S: 83,
   
   isDown: function(keyCode) {
     return this._pressed[keyCode];
@@ -569,7 +588,18 @@ var Key = {
   onKeydown: function(event) {
     this._pressed[event.keyCode] = true;
     if (gameState === "game") {
-        if (event.keyCode == 32) {   //Player 1 shoots spear
+        
+        if (event.keyCode == Key.UP) {   //Player 2 shoots spear
+            // 'UP'
+            if (!players[0].jumping) {
+                players[0].jump();
+            }
+                
+            
+        }          
+
+        
+        if (event.keyCode == Key.SPACE) {   //Player 1 shoots spear
             // Spacebar
             if (spears[0].alive === false) {
                 spears[0].init();
@@ -581,15 +611,25 @@ var Key = {
             }
         }
         
-        if (event.keyCode == 83) {   //Player 2 shoots spear
-            // 'S'
-            if (spears[2].alive === false) {
-                spears[2].init();
-                spears[2].chuck(players[1].x + (PLAYER_WIDTH/2));
-            }
-            else if (spears[3].alive === false && multipleSpears === true) {
-                spears[3].init();
-                spears[3].chuck(players[1].x + (PLAYER_WIDTH/2));
+        
+        if (players[1]) {
+            if (event.keyCode == Key.W) {   //Player 2 shoots spear
+                // 'W'
+                if (!players[1].jumping) {
+                    players[1].jump();
+                }
+            }            
+            
+            if (event.keyCode == Key.S) {   //Player 2 shoots spear
+                // 'S'
+                if (spears[2].alive === false) {
+                    spears[2].init();
+                    spears[2].chuck(players[1].x + (PLAYER_WIDTH/2));
+                }
+                else if (spears[3].alive === false && multipleSpears === true) {
+                    spears[3].init();
+                    spears[3].chuck(players[1].x + (PLAYER_WIDTH/2));
+                }
             }
         }
     }
